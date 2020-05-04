@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 The Thingsboard Authors
+ * Copyright © 2016-2020 The Thingsboard Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -64,7 +64,8 @@ function UserService($http, $q, $rootScope, adminService, dashboardService, time
         logout: logout,
         reloadUser: reloadUser,
         isUserTokenAccessEnabled: isUserTokenAccessEnabled,
-        loginAsUser: loginAsUser
+        loginAsUser: loginAsUser,
+        setUserCredentialsEnabled: setUserCredentialsEnabled
     }
 
     reloadUser();
@@ -141,7 +142,11 @@ function UserService($http, $q, $rootScope, adminService, dashboardService, time
     }
 
     function logout() {
-        clearJwtToken(true);
+        $http.post('/api/auth/logout', null, {ignoreErrors: true}).then(function success() {
+            clearJwtToken(true);
+        }, function fail() {
+            clearJwtToken(true);
+        });
     }
 
     function clearJwtToken(doLogout) {
@@ -381,6 +386,26 @@ function UserService($http, $q, $rootScope, adminService, dashboardService, time
                     deferred.reject();
                 }
                 procceedJwtTokenValidate();
+            } else if (locationSearch.username && locationSearch.password) {
+                var user = {};
+                user.name = locationSearch.username;
+                user.password = locationSearch.password;
+                $location.search('username', null);
+                $location.search('password', null);
+
+                loginService.login(user).then(function success(response) {
+                    var token = response.data.token;
+                    var refreshToken = response.data.refreshToken;
+                    try {
+                        updateAndValidateToken(token, 'jwt_token', false);
+                        updateAndValidateToken(refreshToken, 'refresh_token', false);
+                    } catch (e) {
+                        deferred.reject();
+                    }
+                    procceedJwtTokenValidate();
+                }, function fail() {
+                    deferred.reject();
+                });
             } else {
                 procceedJwtTokenValidate();
             }
@@ -486,6 +511,20 @@ function UserService($http, $q, $rootScope, adminService, dashboardService, time
         }
         $http.post(url, user).then(function success(response) {
             deferred.resolve(response.data);
+        }, function fail() {
+            deferred.reject();
+        });
+        return deferred.promise;
+    }
+
+    function setUserCredentialsEnabled(userId, userCredentialsEnabled) {
+        var deferred = $q.defer();
+        var url = '/api/user/' + userId + '/userCredentialsEnabled';
+        if (angular.isDefined(userCredentialsEnabled)) {
+            url += '?userCredentialsEnabled=' + userCredentialsEnabled;
+        }
+        $http.post(url, null).then(function success() {
+            deferred.resolve();
         }, function fail() {
             deferred.reject();
         });

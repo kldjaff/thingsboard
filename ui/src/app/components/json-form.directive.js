@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016-2019 The Thingsboard Authors
+ * Copyright © 2016-2020 The Thingsboard Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,13 +22,17 @@ import ReactSchemaForm from './react/json-form-react.jsx';
 import jsonFormTemplate from './json-form.tpl.html';
 import { utils } from 'react-schema-form';
 
+import MaterialIconsDialogController from './material-icons-dialog.controller';
+import materialIconsDialogTemplate from './material-icons-dialog.tpl.html';
+
 export default angular.module('thingsboard.directives.jsonForm', [])
     .directive('tbJsonForm', JsonForm)
+    .controller('MaterialIconsDialogController', MaterialIconsDialogController)
     .value('ReactSchemaForm', ReactSchemaForm)
     .name;
 
 /*@ngInject*/
-function JsonForm($compile, $templateCache, $mdColorPicker) {
+function JsonForm($compile, $templateCache, $mdColorPicker, $mdDialog, $document) {
 
     var linker = function (scope, element) {
 
@@ -90,6 +94,9 @@ function JsonForm($compile, $templateCache, $mdColorPicker) {
             onColorClick: function(event, key, val) {
                 scope.showColorPicker(event, val);
             },
+            onIconClick: function(event) {
+                scope.openIconDialog(event);
+            },
             onToggleFullscreen: function() {
                 scope.isFullscreen = !scope.isFullscreen;
                 scope.formProps.isFullscreen = scope.isFullscreen;
@@ -123,6 +130,23 @@ function JsonForm($compile, $templateCache, $mdColorPicker) {
             });
         }
 
+        scope.openIconDialog = function(event) {
+            $mdDialog.show({
+                controller: 'MaterialIconsDialogController',
+                controllerAs: 'vm',
+                templateUrl: materialIconsDialogTemplate,
+                parent: angular.element($document[0].body),
+                locals: {icon: scope.icon},
+                multiple: true,
+                fullscreen: true,
+                targetEvent: event
+            }).then(function (icon) {
+                if (event.data && event.data.onValueChanged) {
+                    event.data.onValueChanged(icon);
+                }
+            });
+        }
+
         scope.onFullscreenChanged = function() {}
 
         scope.validate = function(){
@@ -145,11 +169,13 @@ function JsonForm($compile, $templateCache, $mdColorPicker) {
                 };
             schema.strict = true;
             var form = scope.form ? angular.copy(scope.form) : [ "*" ];
+            var groupInfoes = scope.groupInfoes ? angular.copy(scope.groupInfoes) : [];
             var model = scope.model || {};
             scope.model = inspector.sanitize(schema, model).data;
             scope.formProps.option.formDefaults.readonly = readonly;
             scope.formProps.schema = schema;
             scope.formProps.form = form;
+            scope.formProps.groupInfoes = groupInfoes;
             scope.formProps.model = angular.copy(scope.model);
             if (!skipRerender) {
                 recompile();
@@ -176,6 +202,12 @@ function JsonForm($compile, $templateCache, $mdColorPicker) {
             }
         });
 
+        scope.$watch('groupInfoes',function(newValue, prevValue) {
+            if (newValue && newValue != prevValue) {
+                scope.updateValues();
+            }
+        });
+
         scope.validate();
 
         recompile();
@@ -189,6 +221,7 @@ function JsonForm($compile, $templateCache, $mdColorPicker) {
             form: '=',
             model: '=',
             formControl: '=',
+            groupInfoes: '=',
             readonly: '='
         },
         link: linker

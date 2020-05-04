@@ -1,5 +1,5 @@
 /**
- * Copyright © 2016-2019 The Thingsboard Authors
+ * Copyright © 2016-2020 The Thingsboard Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -53,6 +53,9 @@ public final class DeviceEntity extends BaseSqlEntity<Device> implements SearchT
     @Column(name = ModelConstants.DEVICE_NAME_PROPERTY)
     private String name;
 
+    @Column(name = ModelConstants.DEVICE_LABEL_PROPERTY)
+    private String label;
+
     @Column(name = ModelConstants.SEARCH_TEXT_PROPERTY)
     private String searchText;
 
@@ -66,7 +69,7 @@ public final class DeviceEntity extends BaseSqlEntity<Device> implements SearchT
 
     public DeviceEntity(Device device) {
         if (device.getId() != null) {
-            this.setId(device.getId().getId());
+            this.setUuid(device.getId().getId());
         }
         if (device.getTenantId() != null) {
             this.tenantId = toString(device.getTenantId().getId());
@@ -76,6 +79,7 @@ public final class DeviceEntity extends BaseSqlEntity<Device> implements SearchT
         }
         this.name = device.getName();
         this.type = device.getType();
+        this.label = device.getLabel();
         this.additionalInfo = device.getAdditionalInfo();
     }
 
@@ -91,8 +95,8 @@ public final class DeviceEntity extends BaseSqlEntity<Device> implements SearchT
 
     @Override
     public Device toData() {
-        Device device = new Device(new DeviceId(getId()));
-        device.setCreatedTime(UUIDs.unixTimestamp(getId()));
+        Device device = new Device(new DeviceId(this.getUuid()));
+        device.setCreatedTime(UUIDs.unixTimestamp(this.getUuid()));
         if (tenantId != null) {
             device.setTenantId(new TenantId(toUUID(tenantId)));
         }
@@ -101,6 +105,7 @@ public final class DeviceEntity extends BaseSqlEntity<Device> implements SearchT
         }
         device.setName(name);
         device.setType(type);
+        device.setLabel(label);
         device.setAdditionalInfo(additionalInfo);
         return device;
     }
